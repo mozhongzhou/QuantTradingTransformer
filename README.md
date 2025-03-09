@@ -32,12 +32,7 @@ QuantTradingTransformer/
 │   ├── model_training.ipynb    # 模型训练和调优
 │   └── strategy_backtest.ipynb # 策略回测和评估
 ├── logs/                 # 日志文件
-│   ├── training_logs/    # 模型训练日志
-│   │   ├── AAPL_training.log
-│   │   └── ...
-│   └── backtest_logs/    # 回测日志
-│       ├── AAPL_backtest.log
-│       └── ...
+│
 ├── results/              # 项目结果文件
 │   ├── predictions/      # 模型预测结果
 │   │   ├── AAPL_predictions.csv
@@ -56,7 +51,7 @@ QuantTradingTransformer/
 │   └── visualize_results.py  # 可视化结果
 ├── configs/              # 配置文件
 │   ├── model_config.json # 模型超参数配置
-│   ├── data_config.json  # 数据处理参数配置
+│   ├── stocks.json  # 数据处理参数配置
 │   └── strategy_config.json  # 策略配置
 ├── requirements.txt      # 项目依赖
 └── README.md

@@ -1,0 +1,33 @@
+2025-03-09 20:59:33,210 - WARNING - 未找到任何 _cleaned.csv 文件在: e:\Coding\NLP-Project\QuantTradingTransformer\data\processed\
+2025-03-09 20:59:57,775 - INFO - 开始为 AAPL 生成序列
+2025-03-09 20:59:57,799 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\AAPL_sequences.npz, 形状: (3788, 30, 5)
+2025-03-09 20:59:57,799 - INFO - 开始为 GOOGL 生成序列
+2025-03-09 20:59:57,827 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\GOOGL_sequences.npz, 形状: (3788, 30, 5)
+2025-03-09 20:59:57,827 - INFO - 开始为 MSFT 生成序列
+2025-03-09 20:59:57,855 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\MSFT_sequences.npz, 形状: (3788, 30, 5)
+2025-03-09 20:59:57,856 - INFO - 开始为 NVDA 生成序列
+2025-03-09 20:59:57,887 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\NVDA_sequences.npz, 形状: (3788, 30, 5)
+2025-03-09 20:59:57,888 - INFO - 开始为 TSLA 生成序列
+2025-03-09 20:59:57,920 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\TSLA_sequences.npz, 形状: (3666, 30, 5)
+2025-03-09 21:02:09,176 - INFO - 开始为 AAPL 生成序列
+2025-03-09 21:02:09,212 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\AAPL_sequences.npz, 形状: (3788, 30, 5)
+2025-03-09 21:02:09,212 - INFO - 开始为 GOOGL 生成序列
+2025-03-09 21:02:09,230 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\GOOGL_sequences.npz, 形状: (3788, 30, 5)
+2025-03-09 21:02:09,231 - INFO - 开始为 MSFT 生成序列
+2025-03-09 21:02:09,249 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\MSFT_sequences.npz, 形状: (3788, 30, 5)
+2025-03-09 21:02:09,249 - INFO - 开始为 NVDA 生成序列
+2025-03-09 21:02:09,267 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\NVDA_sequences.npz, 形状: (3788, 30, 5)
+2025-03-09 21:02:09,268 - INFO - 开始为 TSLA 生成序列
+2025-03-09 21:02:09,286 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\TSLA_sequences.npz, 形状: (3666, 30, 5)
+2025-03-09 21:16:14,093 - WARNING - 未找到任何 _daily_cleaned.csv 文件在: e:\Coding\NLP-Project\QuantTradingTransformer\data\cleaned\
+2025-03-09 21:16:14,094 - INFO - 开始为 AAPL 生成 weekly 序列（seq_len=20, periods_ahead=1）
+2025-03-09 21:16:14,116 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\AAPL_weekly_sequences.npz, 形状: (772, 20, 5), 标签分布: 0.57
+2025-03-09 21:16:14,117 - INFO - 开始为 GOOGL 生成 weekly 序列（seq_len=20, periods_ahead=1）
+2025-03-09 21:16:14,140 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\GOOGL_weekly_sequences.npz, 形状: (772, 20, 5), 标签分布: 0.55
+2025-03-09 21:16:14,140 - INFO - 开始为 MSFT 生成 weekly 序列（seq_len=20, periods_ahead=1）
+2025-03-09 21:16:14,157 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\MSFT_weekly_sequences.npz, 形状: (772, 20, 5), 标签分布: 0.58
+2025-03-09 21:16:14,157 - INFO - 开始为 NVDA 生成 weekly 序列（seq_len=20, periods_ahead=1）
+2025-03-09 21:16:14,175 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\NVDA_weekly_sequences.npz, 形状: (772, 20, 5), 标签分布: 0.56
+2025-03-09 21:16:14,176 - INFO - 开始为 TSLA 生成 weekly 序列（seq_len=20, periods_ahead=1）
+2025-03-09 21:16:14,191 - INFO - 序列已保存至: e:\Coding\NLP-Project\QuantTradingTransformer\data\sequences\TSLA_weekly_sequences.npz, 形状: (746, 20, 5), 标签分布: 0.53
+2025-03-09 21:16:14,192 - WARNING - 未找到任何 _yearly_cleaned.csv 文件在: e:\Coding\NLP-Project\QuantTradingTransformer\data\cleaned\
