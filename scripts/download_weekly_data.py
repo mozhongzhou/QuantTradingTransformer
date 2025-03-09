@@ -72,7 +72,7 @@ def download_stock_data(stock, start_date, end_date, interval, save_dir):
 # ================= 配置文件读取 =================
 def load_config():
     """加载配置文件"""
-    config_path = os.path.join(get_project_root(), "configs", "stocks.json")
+    config_path = os.path.join(get_project_root(), "configs", "download.json")
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             return json.load(f)

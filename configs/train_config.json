@@ -1,0 +1,16 @@
+{
+  "stocks": ["AAPL", "MSFT", "GOOGL", "NVDA", "TSLA"],
+  "granularity": "weekly",
+  "seq_len": 20,
+  "num_epochs": 10,
+  "batch_size": 16,
+  "learning_rate": 0.0001,
+  "model_params": {
+    "prediction_length": 1,
+    "input_size": 5,
+    "d_model": 128,
+    "num_attention_heads": 4,
+    "num_layers": 4,
+    "dropout": 0.1
+  }
+}
