@@ -1,0 +1,8 @@
+numpy==2.0.2
+pandas==2.2.3
+yfinance==0.2.54
+transformers==4.49.0
+torch==2.7.0
+scikit-learn==1.6.1
+matplotlib==3.9.4
+seaborn==0.13.2

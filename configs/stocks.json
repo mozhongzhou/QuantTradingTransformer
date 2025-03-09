@@ -1,0 +1,6 @@
+{
+  "stocks": ["AAPL", "GOOGL", "NVDA", "TSLA", "MSFT"],
+  "start_date": "2010-01-01",
+  "end_date": "2025-03-01",
+  "interval": "1d"
+}

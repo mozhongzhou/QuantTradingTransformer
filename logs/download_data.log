@@ -1,0 +1,22 @@
+2025-03-09 18:48:15,360 - INFO - 自动更新 end_date 为当前日期: 2025-03-09
+2025-03-09 18:48:15,362 - INFO - 开始下载 AAPL 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:17,433 - INFO - AAPL 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\AAPL.csv
+2025-03-09 18:48:17,433 - INFO - 开始下载 GOOGL 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:17,885 - INFO - GOOGL 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\GOOGL.csv
+2025-03-09 18:48:17,885 - INFO - 开始下载 NVDA 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:18,333 - INFO - NVDA 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\NVDA.csv
+2025-03-09 18:48:18,333 - INFO - 开始下载 TSLA 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:18,753 - INFO - TSLA 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\TSLA.csv
+2025-03-09 18:48:18,753 - INFO - 开始下载 MSFT 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:19,229 - INFO - MSFT 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\MSFT.csv
+2025-03-09 18:48:42,012 - INFO - 自动更新 end_date 为当前日期: 2025-03-09
+2025-03-09 18:48:42,013 - INFO - 开始下载 AAPL 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:44,087 - INFO - AAPL 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\AAPL.csv
+2025-03-09 18:48:44,088 - INFO - 开始下载 GOOGL 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:44,520 - INFO - GOOGL 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\GOOGL.csv
+2025-03-09 18:48:44,520 - INFO - 开始下载 NVDA 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:44,996 - INFO - NVDA 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\NVDA.csv
+2025-03-09 18:48:44,996 - INFO - 开始下载 TSLA 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:45,402 - INFO - TSLA 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\TSLA.csv
+2025-03-09 18:48:45,402 - INFO - 开始下载 MSFT 数据（2010-01-01 至 2025-03-09，间隔 1d）
+2025-03-09 18:48:45,855 - INFO - MSFT 数据已保存至 e:\Coding\NLP-Project\QuantTradingTransformer\data\raw\MSFT.csv
