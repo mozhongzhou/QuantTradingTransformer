@@ -138,8 +138,8 @@ def train_transformer(X, y, model_path, config):
     val_size = int(len(dataset) * val_split)
     train_size = len(dataset) - val_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-    train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=4)
 
     input_dim = X.shape[2]
     model = TransformerModel(input_dim, d_model=config["model_params"]["d_model"], 

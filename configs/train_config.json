@@ -507,12 +507,12 @@
   "granularity": "weekly",
   "seq_len": 50,
   "num_epochs": 20,
-  "batch_size": 32,
+  "batch_size": 64,
   "learning_rate": 0.00005,
   "model_params": {
     "prediction_length": 1,
     "input_size": 5,
-    "d_model": 256,
+    "d_model": 512,
     "num_attention_heads": 8,
     "num_layers": 6,
     "dropout": 0.2
