@@ -1,14 +1,12 @@
 import os
 import pandas as pd
 import logging
-
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ================= 项目路径管理 =================
 def get_project_root():
     """获取项目根目录"""
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 
 # ================= 日志配置 =================
 def setup_logger():
@@ -75,15 +73,21 @@ def clean_all_stock_data(input_dir, output_dir):
     # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
 
-    # 遍历输入目录中的所有文件
-    for file_name in os.listdir(input_dir):
-        if file_name.endswith(".csv"):
-            # 构造输入和输出文件路径
-            input_path = os.path.join(input_dir, file_name)
-            output_path = os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_cleaned.csv")
-
-            # 清洗数据并保存
-            clean_stock_data(input_path, output_path)
+    # 使用 ThreadPoolExecutor 进行多线程清洗
+    with ThreadPoolExecutor(max_workers=500) as executor:
+        futures = []
+        for file_name in os.listdir(input_dir):
+            if file_name.endswith(".csv"):
+                # 构造输入和输出文件路径
+                input_path = os.path.join(input_dir, file_name)
+                output_path = os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_cleaned.csv")
+                futures.append(executor.submit(clean_stock_data, input_path, output_path))
+        
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                logger.error(f"清洗过程中发生错误: {str(e)}")
 
 # ================= 主函数 =================
 def main():

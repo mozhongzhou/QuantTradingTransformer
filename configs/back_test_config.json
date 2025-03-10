@@ -1,6 +1,6 @@
 {
   "initial_capital": 1000000,
-  "buy_cash_ratio": 0.9,
+  "buy_cash_ratio": 0.2,
   "data_dir": "data/featured",
   "strategy_dir": "data/strategy",
   "results_dir": "results/backtest"
