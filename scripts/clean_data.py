@@ -43,6 +43,11 @@ def clean_stock_data(file_path, output_path):
         # 读取原始文件，跳过前3行
         df = pd.read_csv(file_path, skiprows=3, header=None)
 
+        # 检查列数是否为6
+        if df.shape[1] != 6:
+            logger.warning(f"文件 {file_path} 列数不为6，已跳过")
+            return
+
         # 设置正确的列名
         df.columns = ["Date", "Open", "Close", "High", "Low", "Volume"]
 
