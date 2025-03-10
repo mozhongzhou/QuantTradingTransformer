@@ -17,36 +17,35 @@ def get_raw_data_path(stock_code="", interval=""):
 
 # ================= 日志配置 =================
 def setup_logger():
-    """配置带运行分隔符的日志系统"""
+    """简化版日志配置"""
     log_dir = os.path.join(get_project_root(), "logs")
     os.makedirs(log_dir, exist_ok=True)
-    
+
+    # 日志文件路径
+    log_file = os.path.join(log_dir, "download_data.log")
+
+    # 配置日志格式
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M"  # 仅显示年月日时分
+    )
+
+    # 获取或创建日志记录器
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    # 删除已有处理器避免重复
-    if logger.handlers:
-        logger.handlers = []
-
-    # 自定义格式（年月日时分）
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M"  # 仅显示到分钟
-    )
-
-    # 文件处理器（UTF-8编码）
-    file_handler = logging.FileHandler(
-        os.path.join(log_dir, "download_data.log"),
-        encoding="utf-8"
-    )
+    # 文件处理器
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setFormatter(formatter)
 
     # 控制台处理器
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+    # 添加处理器（避免重复添加）
+    if not logger.handlers:
+        logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
 
     return logger
 

@@ -18,18 +18,34 @@ def setup_logger():
     log_file = os.path.join(log_dir, "clean_data.log")
 
     # 配置日志格式和编码
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler(log_file, encoding="utf-8"),  # 确保日志文件使用 UTF-8 编码
-            logging.StreamHandler()  # 同时输出到控制台
-        ]
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    # 删除已有处理器避免重复
+    if logger.handlers:
+        logger.handlers = []
+
+    # 自定义日志格式（时间仅显示年月日时分）
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M"  # 仅显示年月日时分
     )
-    return logging.getLogger(__name__)
+
+    # 文件处理器（UTF-8编码）
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+
+    # 控制台处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    # 添加处理器
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    return logger
 
 logger = setup_logger()
-
 # ================= 数据清洗函数 =================
 def clean_stock_data(file_path, output_path):
     """
