@@ -60,7 +60,7 @@
     "BAC",
     "BAX",
     "BDX",
-    "BRK.B",
+    "BRK-B",
     "BBY",
     "TECH",
     "BIIB",
@@ -75,7 +75,7 @@
     "AVGO",
     "BR",
     "BRO",
-    "BF.B",
+    "BF-B",
     "BLDR",
     "BG",
     "BXP",
@@ -506,6 +506,6 @@
   ],
   "start_date": "2010-01-01",
   "end_date": "2026-03-01",
-  "interval": "1wk",
+  "interval": "1d",
   "overwrite": false
 }
