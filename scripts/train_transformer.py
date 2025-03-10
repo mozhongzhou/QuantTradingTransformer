@@ -3,8 +3,9 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, random_split
 import logging
+import json
 
 # ================= 项目路径管理 =================
 def get_project_root():
@@ -123,7 +124,7 @@ class TransformerModel(nn.Module):
         return x
 
 # ================= 训练函数 =================
-def train_transformer(X, y, model_path, epochs=50, batch_size=32):
+def train_transformer(X, y, model_path, config):
     """训练 Transformer 模型"""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"使用设备: {device}")
@@ -131,26 +132,54 @@ def train_transformer(X, y, model_path, epochs=50, batch_size=32):
     X_tensor = torch.tensor(X, dtype=torch.float32)
     y_tensor = torch.tensor(y, dtype=torch.long)
     dataset = TensorDataset(X_tensor, y_tensor)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    # 划分训练集和验证集
+    val_split = config.get("val_split", 0.2)
+    val_size = int(len(dataset) * val_split)
+    train_size = len(dataset) - val_size
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False)
 
     input_dim = X.shape[2]
-    model = TransformerModel(input_dim, d_model=64, n_heads=4, n_layers=2).to(device)
+    model = TransformerModel(input_dim, d_model=config["model_params"]["d_model"], 
+                             n_heads=config["model_params"]["num_attention_heads"], 
+                             n_layers=config["model_params"]["num_layers"], 
+                             dropout=config["model_params"]["dropout"]).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config["learning_rate"])
 
-    for epoch in range(epochs):
+    for epoch in range(config["num_epochs"]):
         model.train()
-        epoch_loss = 0
-        for batch_X, batch_y in dataloader:
+        train_loss = 0
+        for batch_X, batch_y in train_loader:
             batch_X, batch_y = batch_X.to(device), batch_y.to(device)
             optimizer.zero_grad()
             output = model(batch_X)
             loss = criterion(output, batch_y)
             loss.backward()
             optimizer.step()
-            epoch_loss += loss.item() * batch_X.size(0)
-        avg_loss = epoch_loss / len(dataset)
-        logger.info(f"Epoch {epoch+1}/{epochs}, Avg Loss: {avg_loss:.4f}")
+            train_loss += loss.item() * batch_X.size(0)
+        avg_train_loss = train_loss / train_size
+
+        # 验证模型
+        model.eval()
+        val_loss = 0
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for batch_X, batch_y in val_loader:
+                batch_X, batch_y = batch_X.to(device), batch_y.to(device)
+                output = model(batch_X)
+                loss = criterion(output, batch_y)
+                val_loss += loss.item() * batch_X.size(0)
+                _, predicted = torch.max(output, 1)
+                total += batch_y.size(0)
+                correct += (predicted == batch_y).sum().item()
+        avg_val_loss = val_loss / val_size
+        val_accuracy = correct / total
+
+        logger.info(f"Epoch {epoch+1}/{config['num_epochs']}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Val Accuracy: {val_accuracy:.4f}")
 
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     torch.save(model.state_dict(), model_path)
@@ -209,12 +238,17 @@ def main():
         model_path = os.path.join(get_project_root(), "models", "transformer.pth")
         output_dir = os.path.join(get_project_root(), "data", "strategy")
         
-        X, y = load_and_preprocess_data(input_dir)
+        # 加载配置文件
+        config_path = os.path.join(get_project_root(), "configs", "train_config.json")
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        
+        X, y = load_and_preprocess_data(input_dir, seq_length=config["seq_len"])
         logger.info(f"数据加载完成，X shape: {X.shape}, y shape: {y.shape}")
         
-        train_transformer(X, y, model_path)
+        train_transformer(X, y, model_path, config)
         
-        generate_trading_strategy(input_dir, model_path, output_dir)
+        generate_trading_strategy(input_dir, model_path, output_dir, seq_length=config["seq_len"])
         
         logger.info("========== 训练与策略生成完成 ==========")
     
