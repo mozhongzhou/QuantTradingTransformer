@@ -175,20 +175,78 @@ def train_model(model: nn.Module, dataloader: DataLoader, config: dict, device: 
     avg_risk = sum(risks) / len(risks)
     logger.info(f"{phase}阶段 - 平均奖励: {avg_reward:.4f}, 平均年化收益: {avg_annual_return:.4f}, 平均风险: {avg_risk:.4f}")
     return {"avg_reward": avg_reward, "avg_annual_return": avg_annual_return, "avg_risk": avg_risk}
+# ================= 检查点管理 =================
+def save_checkpoint(model, optimizer, epoch, best_val_reward, config, checkpoint_dir):
+    """
+    保存训练检查点
+    参数:
+        model: 模型
+        optimizer: 优化器
+        epoch: 当前训练轮次
+        best_val_reward: 最佳验证奖励
+        config: 训练配置
+        checkpoint_dir: 检查点保存目录
+    """
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    checkpoint_path = os.path.join(checkpoint_dir, "latest_checkpoint.pt")
+    
+    checkpoint = {
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'epoch': epoch,
+        'best_val_reward': best_val_reward,
+        'config': config
+    }
+    
+    torch.save(checkpoint, checkpoint_path)
+    logger.info(f"检查点已保存至: {checkpoint_path}")
 
+def load_checkpoint(checkpoint_path, device):
+    """
+    加载训练检查点
+    参数:
+        checkpoint_path: 检查点文件路径
+        device: 设备(CPU/GPU)
+    返回:
+        checkpoint: 加载的检查点数据
+    """
+    if not os.path.exists(checkpoint_path):
+        logger.info(f"未找到检查点文件: {checkpoint_path}")
+        return None
+    
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    logger.info(f"已加载检查点: {checkpoint_path}")
+    logger.info(f"从第 {checkpoint['epoch']} 轮继续训练")
+    return checkpoint
 # ================= 主函数 =================
 def main():
     try:
         logger.info("========== 开始训练自监督 Transformer 模型 ==========")
         project_root = get_project_root()
         data_dir = os.path.join(project_root, "data", "standardized")
-        df = load_csv_data(data_dir)
-        logger.info(f"数据加载完成，共 {len(df)} 条记录")
-
+        
+        # 加载配置文件
         config_path = os.path.join(project_root, "configs", "train_selfsupervised_transformer_config.json")
         with open(config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
         logger.info(f"配置文件加载完成: {config}")
+        
+        # 设置检查点目录
+        checkpoint_dir = os.path.join(project_root, "models", "checkpoints")
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        checkpoint_path = os.path.join(checkpoint_dir, "latest_checkpoint.pt")
+        
+        # 设置设备
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # 检查是否存在检查点
+        checkpoint = load_checkpoint(checkpoint_path, device)
+        start_epoch = 0
+        best_val_reward = -float("inf")
+        
+        # 数据加载和处理部分保持不变
+        df = load_csv_data(data_dir)
+        logger.info(f"数据加载完成，共 {len(df)} 条记录")
 
         if config.get("small_scale", False):
             max_samples = config.get("max_samples", 1000)
@@ -208,6 +266,7 @@ def main():
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
         logger.info(f"训练集样本数: {len(train_dataset)}, 验证集样本数: {len(val_dataset)}, 测试集样本数: {len(test_dataset)}")
 
+        # 初始化或加载模型
         input_dim = train_dataset.input_data.shape[1]
         model = TransformerModel(
             input_dim=input_dim,
@@ -216,22 +275,34 @@ def main():
             num_layers=config["num_layers"],
             output_dim=config["output_dim"]
         )
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
-        logger.info("模型初始化完成")
-
+        
         optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
+        
+        # 如果存在检查点，加载模型和优化器状态
+        if checkpoint:
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_epoch = checkpoint['epoch'] + 1  # 从下一轮开始
+            best_val_reward = checkpoint['best_val_reward']
+        
+        logger.info("模型初始化完成")
+        
         model_save_dir = os.path.join(project_root, "models")
         os.makedirs(model_save_dir, exist_ok=True)
 
-        best_val_reward = -float("inf")
-        for epoch in range(config["num_epochs"]):
+        # 从检查点恢复的轮次开始训练
+        for epoch in range(start_epoch, config["num_epochs"]):
             logger.info(f"===== Epoch {epoch+1}/{config['num_epochs']} =====")
             train_metrics = train_model(model, train_loader, config, device, phase="训练", optimizer=optimizer)
             val_metrics = train_model(model, val_loader, config, device, phase="验证")
+            
+            # 保存检查点
+            save_checkpoint(model, optimizer, epoch, best_val_reward, config, checkpoint_dir)
+            
+            # 模型改进时保存最佳模型
             if val_metrics["avg_reward"] > best_val_reward:
                 best_val_reward = val_metrics["avg_reward"]
-                # 生成当前时间的时间戳，格式为 YYYY-MM-DD_HH-MM  
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
                 model_name = f"transformer_model_best_{timestamp}.pth"
                 model_save_path = os.path.join(model_save_dir, model_name)
