@@ -86,7 +86,7 @@ def standardize_all_stock_data(input_dir, output_dir, window_size=30):
     with ThreadPoolExecutor(max_workers=50) as executor:
         futures = []
         for file_name in os.listdir(input_dir):
-            if file_name.endswith("_cleaned.csv"):
+            if file_name.endswith("_featured.csv"):
                 input_path = os.path.join(input_dir, file_name)
                 output_path = os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_standardized.csv")
                 futures.append(executor.submit(standardize_stock_data, input_path, output_path, window_size))
@@ -101,7 +101,7 @@ def standardize_all_stock_data(input_dir, output_dir, window_size=30):
 def main():
     try:
         logger.info("========== 开始数据标准化 ==========")
-        input_dir = os.path.join(get_project_root(), "data", "cleaned")
+        input_dir = os.path.join(get_project_root(), "data", "featured")
         output_dir = os.path.join(get_project_root(), "data", "standardized")
         standardize_all_stock_data(input_dir, output_dir)
         logger.info("========== 数据标准化完成 ==========")
