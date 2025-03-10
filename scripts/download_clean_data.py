@@ -11,12 +11,6 @@ def get_project_root():
     """获取项目根目录"""
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def get_raw_data_path(stock_code="", interval=""):
-    """获取原始数据存储路径"""
-    raw_dir = os.path.join(get_project_root(), "data", "raw")
-    os.makedirs(raw_dir, exist_ok=True)
-    return os.path.join(raw_dir, f"{stock_code}_{interval}.csv" if stock_code else "")
-
 # ================= 日志配置 =================
 def setup_logger():
     """简化版日志配置"""
