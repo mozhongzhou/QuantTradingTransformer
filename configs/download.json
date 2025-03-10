@@ -1,6 +1,18 @@
 {
-  "stocks": ["AAPL", "GOOGL", "NVDA", "TSLA", "MSFT"],
+  "stocks": [
+    "NVDA",
+    "TSLA",
+    "DIA",
+    "GLDM",
+    "GRAL",
+    "PLTR",
+    "QQQM",
+    "VOO",
+    "MSFT",
+    "AAPL",
+    "GOOGL"
+  ],
   "start_date": "2010-01-01",
-  "end_date": "2025-03-01",
+  "end_date": "2026-03-01",
   "interval": "1d"
 }
