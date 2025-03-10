@@ -7,7 +7,8 @@
   "nhead": 4,
   "num_layers": 2,
   "output_dim": 1,
-  "risk_penalty": 0.5,
-  "log_interval": 10,
-  "small_scale": true
+  "risk_penalty": 0.25,
+  "log_interval": 20,
+  "small_scale": false,
+  "max_samples": 1000
 }

@@ -4,7 +4,7 @@
 import os
 import json
 import logging
-import datetime
+from datetime import datetime
 import math
 
 import torch
@@ -117,7 +117,7 @@ class TransformerModel(nn.Module):
         super(TransformerModel, self).__init__()
         self.embedding = nn.Linear(input_dim, d_model)
         self.positional_encoding = PositionalEncoding(d_model)
-        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, batch_first=True)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.head = nn.Linear(d_model, output_dim)
 
@@ -231,7 +231,9 @@ def main():
             val_metrics = train_model(model, val_loader, config, device, phase="验证")
             if val_metrics["avg_reward"] > best_val_reward:
                 best_val_reward = val_metrics["avg_reward"]
-                model_name = f"transformer_model_best.pth"
+                # 生成当前时间的时间戳，格式为 YYYY-MM-DD_HH-MM  
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+                model_name = f"transformer_model_best_{timestamp}.pth"
                 model_save_path = os.path.join(model_save_dir, model_name)
                 torch.save(model.state_dict(), model_save_path)
                 logger.info(f"验证集奖励提升，模型已保存至: {model_save_path}")
