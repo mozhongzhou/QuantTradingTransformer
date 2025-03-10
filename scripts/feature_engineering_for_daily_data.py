@@ -1,9 +1,12 @@
+# feature_engineering_for_daily_data.py
 import os
 import pandas as pd
-import numpy as np
 import logging
 from ta.trend import MACD, SMAIndicator  # 使用 ta 库计算技术指标
+from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator
+from ta.volatility import AverageTrueRange
+from ta.volume import OnBalanceVolumeIndicator, VolumeWeightedAveragePrice
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ================= 项目路径管理 =================
@@ -17,16 +20,14 @@ def setup_logger():
     log_dir = os.path.join(get_project_root(), "logs")
     os.makedirs(log_dir, exist_ok=True)
 
-    # 日志文件路径
     log_file = os.path.join(log_dir, "feature_engineering.log")
 
-    # 配置日志格式和编码
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler(log_file, encoding="utf-8"),  # 确保日志文件使用 UTF-8 编码
-            logging.StreamHandler()  # 同时输出到控制台
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler()
         ]
     )
     return logging.getLogger(__name__)
@@ -36,7 +37,7 @@ logger = setup_logger()
 # ================= 特征工程函数 =================
 def add_features_to_stock_data(file_path, output_path):
     """
-    为单个股票数据文件添加特征
+    为单个股票数据文件添加技术特征
     :param file_path: 清洗后的文件路径
     :param output_path: 添加特征后的文件保存路径
     """
@@ -55,26 +56,43 @@ def add_features_to_stock_data(file_path, output_path):
         # 1. 添加简单收益率 (Returns)
         df["Returns"] = df["Close"].pct_change()
 
-        # 2. 添加移动平均线 (MA5, MA20)
-        df["MA5"] = SMAIndicator(df["Close"], window=5).sma_indicator()  # 5周均线
-        df["MA20"] = SMAIndicator(df["Close"], window=20).sma_indicator()  # 20周均线
+        # 2. 添加移动平均线 (MA5, MA20, MA50, MA200)
+        for window in [5, 20, 50, 200]:
+            df[f"MA{window}"] = SMAIndicator(df["Close"], window=window).sma_indicator()
 
         # 3. 添加相对强弱指数 (RSI)
-        df["RSI"] = RSIIndicator(df["Close"], window=14).rsi()  # 14周 RSI
+        df["RSI"] = RSIIndicator(df["Close"], window=14).rsi()
 
         # 4. 添加 MACD
         macd = MACD(df["Close"], window_slow=26, window_fast=12, window_sign=9)
-        df["MACD"] = macd.macd()  # MACD 线
-        df["MACD_Signal"] = macd.macd_signal()  # 信号线
-        df["MACD_Diff"] = macd.macd_diff()  # MACD 差值
+        df["MACD"] = macd.macd()
+        df["MACD_Signal"] = macd.macd_signal()
+        df["MACD_Diff"] = macd.macd_diff()
 
-        # 5. 添加波动率 (Volatility)
-        df["Volatility"] = df["Returns"].rolling(window=20).std()  # 20周收益率标准差
+        # 5. 添加布林带 (Bollinger Bands)
+        bb = BollingerBands(df["Close"], window=20, window_dev=2)
+        df["BB_Band_Upper"] = bb.bollinger_hband()
+        df["BB_Band_Middle"] = bb.bollinger_mavg()
+        df["BB_Band_Lower"] = bb.bollinger_lband()
 
-        # 处理新特征中的缺失值（由于滚动计算导致的 NaN）
-        if df.isnull().sum().sum() > 0:
-            logger.warning(f"文件 {file_path} 中新增特征存在缺失值，已填充为 0")
-            df.fillna(0, inplace=True)  # 可以根据需求改为其他填充方法，如前向填充
+        # 6. 添加波动率 (ATR)
+        atr = AverageTrueRange(df["High"], df["Low"], df["Close"], window=14)
+        df["ATR"] = atr.average_true_range()
+
+        # 7. 添加成交量加权平均价格 (VWAP)
+        vwap = VolumeWeightedAveragePrice(df["High"], df["Low"], df["Close"], df["Volume"])
+        df["VWAP"] = vwap.volume_weighted_average_price()
+
+        # 8. 添加 OBV (On-Balance Volume)
+        obv = OnBalanceVolumeIndicator(df["Close"], df["Volume"])
+        df["OBV"] = obv.on_balance_volume()
+
+        # 9. 添加波动率 (Volatility)
+        df["Volatility"] = df["Returns"].rolling(window=20).std()
+
+        # 处理新特征中的缺失值
+        df.fillna(method="ffill", inplace=True)  # 前向填充
+        df.fillna(0, inplace=True)  # 剩余缺失值填充为 0
 
         # 保存添加特征后的数据
         df.to_csv(output_path, index=False)
@@ -90,15 +108,13 @@ def process_all_stock_data(input_dir, output_dir):
     :param input_dir: 清洗后的文件目录
     :param output_dir: 添加特征后的文件保存目录
     """
-    # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
 
     # 使用 ThreadPoolExecutor 进行多线程处理
-    with ThreadPoolExecutor(max_workers=500) as executor:
+    with ThreadPoolExecutor(max_workers=50) as executor:  # 调整线程池大小
         futures = []
         for file_name in os.listdir(input_dir):
             if file_name.endswith(".csv"):
-                # 构造输入和输出文件路径
                 input_path = os.path.join(input_dir, file_name)
                 output_path = os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_featured.csv")
                 futures.append(executor.submit(add_features_to_stock_data, input_path, output_path))
@@ -114,11 +130,9 @@ def main():
     try:
         logger.info("========== 开始特征工程 ==========")
 
-        # 配置路径
-        input_dir = os.path.join(get_project_root(), "data", "cleaned")  # 清洗后的数据目录
-        output_dir = os.path.join(get_project_root(), "data", "featured")  # 特征工程后的数据目录
+        input_dir = os.path.join(get_project_root(), "data", "cleaned")
+        output_dir = os.path.join(get_project_root(), "data", "featured")
 
-        # 为所有股票数据添加特征
         process_all_stock_data(input_dir, output_dir)
 
         logger.info("========== 特征工程完成 ==========")
