@@ -2,7 +2,9 @@ import os
 import json
 import yfinance as yf
 from datetime import datetime
+import pandas as pd
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ================= 路径管理 =================
 def get_project_root():
@@ -22,7 +24,7 @@ def setup_logger():
     os.makedirs(log_dir, exist_ok=True)
 
     # 日志文件路径
-    log_file = os.path.join(log_dir, "download_data.log")
+    log_file = os.path.join(log_dir, "download_and_clean_data.log")
 
     # 配置日志格式
     formatter = logging.Formatter(
@@ -51,26 +53,28 @@ def setup_logger():
 
 logger = setup_logger()
 
-# ================= 数据下载 =================
-def download_stock_data(stock, start_date, end_date, interval, save_dir, overwrite):
+# ================= 数据下载与清洗函数 =================
+def download_and_clean_stock_data(stock, start_date, end_date, interval, output_dir, overwrite):
     """
-    下载单只股票数据并保存到CSV文件
+    下载并清洗单只股票数据，保存为清洗后的文件
     :param stock: 股票代码
     :param start_date: 开始日期
     :param end_date: 结束日期
     :param interval: 数据间隔（如 "1d", "1wk"）
-    :param save_dir: 保存目录
+    :param output_dir: 清洗后文件保存目录
     :param overwrite: 是否覆盖同名文件
     """
     try:
-        save_path = os.path.join(save_dir, f"{stock}_{interval}.csv")
+        # 构造输出文件路径
+        output_path = os.path.join(output_dir, f"{stock}_{interval}_cleaned.csv")
         
-        if not overwrite and os.path.exists(save_path):
-            logger.info(f"{save_path} 已存在，跳过下载")
+        # 如果文件已存在且不覆盖，则跳过
+        if not overwrite and os.path.exists(output_path):
+            logger.info(f"{output_path} 已存在，跳过下载和清洗")
             return
         
+        # 下载数据
         logger.info(f"开始下载 {stock} 数据（{start_date} 至 {end_date}，间隔：{interval}）")
-        
         data = yf.download(
             tickers=stock,
             start=start_date,
@@ -80,15 +84,61 @@ def download_stock_data(stock, start_date, end_date, interval, save_dir, overwri
             auto_adjust=True
         )
         
+        # 检查数据是否为空
         if data.empty:
             logger.warning(f"{stock} 未找到数据，跳过保存")
             return
         
-        data.to_csv(save_path, encoding="utf-8")
-        logger.info(f"{stock} 数据已保存至 {save_path}")
-        
+        # 清洗数据
+        logger.info(f"开始清洗 {stock} 数据")
+        data = data.reset_index()  # 将日期列从索引转换为普通列
+        data.columns = ["Date", "Open", "High", "Low", "Close", "Volume"]  # 设置正确的列名
+
+        # 检查数据类型
+        data["Date"] = pd.to_datetime(data["Date"], format="%Y-%m-%d")  # 将日期列转换为日期类型
+        for col in ["Open", "Close", "High", "Low", "Volume"]:
+            data[col] = pd.to_numeric(data[col], errors="coerce")  # 将数值列转换为浮点数
+
+        # 处理缺失值
+        if data.isnull().sum().sum() > 0:
+            logger.warning(f"{stock} 数据中存在缺失值，已删除相关行")
+        data.dropna(inplace=True)  # 删除包含缺失值的行
+
+        # 保存清洗后的数据
+        data.to_csv(output_path, index=False)
+        logger.info(f"{stock} 数据已下载并清洗，保存至: {output_path}")
+
     except Exception as e:
-        logger.error(f"下载 {stock} 数据时出错: {str(e)}")
+        logger.error(f"下载或清洗 {stock} 数据时出错: {str(e)}")
+
+# ================= 批量下载与清洗函数 =================
+def download_and_clean_all_stock_data(stocks, start_date, end_date, interval, output_dir, overwrite):
+    """
+    下载并清洗所有股票数据
+    :param stocks: 股票代码列表
+    :param start_date: 开始日期
+    :param end_date: 结束日期
+    :param interval: 数据间隔（如 "1d", "1wk"）
+    :param output_dir: 清洗后文件保存目录
+    :param overwrite: 是否覆盖同名文件
+    """
+    # 确保输出目录存在
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 使用 ThreadPoolExecutor 进行多线程处理
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        futures = []
+        for stock in stocks:
+            futures.append(executor.submit(
+                download_and_clean_stock_data,
+                stock, start_date, end_date, interval, output_dir, overwrite
+            ))
+        
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                logger.error(f"处理过程中发生错误: {str(e)}")
 
 # ================= 配置文件读取 =================
 def load_config():
@@ -106,26 +156,32 @@ def load_config():
 
 # ================= 主函数 =================
 def main():
-    config = load_config()
-    if not config:
-        return
-    
-    stocks = config.get("stocks", [])
-    start_date = config.get("start_date", "2010-01-01")
-    end_date = config.get("end_date", datetime.now().strftime("%Y-%m-%d"))
-    interval = config.get("interval", "1d")
-    overwrite = config.get("overwrite", False)
-    
-    save_dir = os.path.join(get_project_root(), "data", "raw")
-    os.makedirs(save_dir, exist_ok=True)
-    
-    # 单线程顺序执行
-    for stock in stocks:
-        try:
-            download_stock_data(stock, start_date, end_date, interval, save_dir, overwrite)
-            logger.info(f"{stock} 下载完成")
-        except Exception as e:
-            logger.error(f"{stock} 下载失败: {str(e)}")
+    try:
+        logger.info("========== 开始数据下载与清洗 ==========")
+
+        # 加载配置文件
+        config = load_config()
+        if not config:
+            return
+        
+        # 获取配置参数
+        stocks = config.get("stocks", [])
+        start_date = config.get("start_date", "2010-01-04")
+        end_date = config.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+        interval = config.get("interval", "1d")
+        overwrite = config.get("overwrite", False)
+
+        # 配置输出目录
+        output_dir = os.path.join(get_project_root(), "data", "cleaned")
+        os.makedirs(output_dir, exist_ok=True)
+
+        # 下载并清洗所有股票数据
+        download_and_clean_all_stock_data(stocks, start_date, end_date, interval, output_dir, overwrite)
+
+        logger.info("========== 数据下载与清洗完成 ==========")
+
+    except Exception as e:
+        logger.error(f"数据下载与清洗过程中发生错误: {str(e)}")
 
 if __name__ == "__main__":
     main()

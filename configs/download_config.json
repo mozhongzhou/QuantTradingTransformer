@@ -504,8 +504,8 @@
     "ZBH",
     "ZTS"
   ],
-  "start_date": "2010-01-01",
-  "end_date": "2026-03-01",
+  "start_date": "2010-01-04",
+  "end_date": "2025-03-10",
   "interval": "1d",
   "overwrite": false
 }
