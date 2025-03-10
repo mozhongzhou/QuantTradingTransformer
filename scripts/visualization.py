@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import logging
 import plotly.graph_objects as go
+import random
 
 # ================= 项目路径管理 =================
 def get_project_root():
@@ -31,8 +32,8 @@ logger = setup_logger()
 def plot_single_stock_strategy(featured_csv, strategy_csv):
     """
     利用 Plotly 绘制单个股票的交互式周K线图，并叠加交易策略信号
-    :param featured_csv: 特色数据文件路径，如 data/featured/AAPL_weekly_cleaned_featured.csv
-    :param strategy_csv: 策略数据文件路径，如 data/strategy/AAPL_weekly_cleaned_featured_standardized_strategy.csv
+    :param featured_csv: 特色数据文件路径，如 data/featured/AAPL_1wk_cleaned_featured.csv
+    :param strategy_csv: 策略数据文件路径，如 data/strategy/AAPL_1wk_cleaned_featured_standardized_strategy.csv
     """
     try:
         df_featured = pd.read_csv(featured_csv)
@@ -126,8 +127,8 @@ def plot_single_stock_strategy(featured_csv, strategy_csv):
 def plot_all_strategies():
     """
     扫描策略目录下所有 CSV 文件，为每个股票绘制对应的交互式K线图及交易策略信号
-    策略文件命名格式假设为：股票代码_weekly_cleaned_featured_standardized_strategy.csv
-    对应的特色数据文件为：股票代码_weekly_cleaned_featured.csv
+    策略文件命名格式假设为：股票代码_1wk_cleaned_featured_standardized_strategy.csv
+    对应的特色数据文件为：股票代码_1wk_cleaned_featured.csv
     """
     project_root = get_project_root()
     strategy_dir = os.path.join(project_root, "data", "strategy")
@@ -145,10 +146,13 @@ def plot_all_strategies():
         logger.error(f"策略目录 {strategy_dir} 中未找到策略 CSV 文件")
         return
 
-    for strat_file in strategy_files:
-        # 假设文件名格式：{stockcode}_weekly_cleaned_featured_standardized_strategy.csv
+    # 随机挑选 5 个策略文件
+    selected_files = random.sample(strategy_files, min(5, len(strategy_files)))
+
+    for strat_file in selected_files:
+        # 假设文件名格式：{stockcode}_1wk_cleaned_featured_standardized_strategy.csv
         stock_code = strat_file.split("_")[0]
-        featured_file = os.path.join(featured_dir, f"{stock_code}_weekly_cleaned_featured.csv")
+        featured_file = os.path.join(featured_dir, f"{stock_code}_1wk_cleaned_featured.csv")
         strat_file_path = os.path.join(strategy_dir, strat_file)
         
         if not os.path.exists(featured_file):

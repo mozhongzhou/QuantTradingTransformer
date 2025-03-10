@@ -414,8 +414,8 @@ def run_backtest_for_stock(symbol, data_dir=None, strategy_dir=None, results_dir
     if buy_cash_ratio is None:
         buy_cash_ratio = config.get("buy_cash_ratio", 0.9)
     
-    original_file = os.path.join(data_dir, f"{symbol}_weekly_cleaned_featured.csv")
-    strategy_file = os.path.join(strategy_dir, f"{symbol}_weekly_cleaned_featured_standardized_strategy.csv")
+    original_file = os.path.join(data_dir, f"{symbol}_1wk_cleaned_featured.csv")
+    strategy_file = os.path.join(strategy_dir, f"{symbol}_1wk_cleaned_featured_standardized_strategy.csv")
     
     os.makedirs(results_dir, exist_ok=True)
     
@@ -497,23 +497,23 @@ def compare_strategies(all_results):
 
 def main():
     """
-    主函数，针对所有可用股票执行回测，并生成对比图
+    主函数，针对配置文件中指定的股票代码执行回测，并生成对比图
     """
     project_root = get_project_root()
     config = load_config()
     data_dir = os.path.join(project_root, config.get("data_dir", "data/featured"))
     strategy_dir = os.path.join(project_root, config.get("strategy_dir", "data/strategy"))
-     
-    try:
-        stock_files = [f for f in os.listdir(data_dir) if f.endswith("_cleaned_featured.csv")]
-        symbols = [f.split("_")[0] for f in stock_files]
-        logger.info(f"找到股票代码: {symbols}")
-    except Exception as e:
-        logger.error(f"获取股票数据文件失败: {e}")
+    
+    # 从配置文件中获取选中的股票代码
+    selected_symbols = config.get("selected_symbols", [])
+    if not selected_symbols:
+        logger.error("配置文件中未指定 selected_symbols 或为空")
         return
     
+    logger.info(f"将对以下股票进行回测: {selected_symbols}")
+    
     all_results = {}
-    for symbol in symbols:
+    for symbol in selected_symbols:
         logger.info(f"\n开始回测 {symbol}...")
         results = run_backtest_for_stock(symbol, data_dir=data_dir, strategy_dir=strategy_dir)
         if results:
@@ -521,6 +521,7 @@ def main():
     
     if all_results:
         compare_strategies(all_results)
+        logger.info("回测完成")
 
 if __name__ == "__main__":
     main()

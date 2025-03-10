@@ -3,5 +3,6 @@
   "buy_cash_ratio": 0.2,
   "data_dir": "data/featured",
   "strategy_dir": "data/strategy",
-  "results_dir": "results/backtest"
+  "results_dir": "results/backtest",
+  "selected_symbols": ["AAPL", "TSLA", "GOOGL", "MSFT", "NVDA"]
 }
