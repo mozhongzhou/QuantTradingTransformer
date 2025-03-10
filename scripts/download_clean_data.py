@@ -154,6 +154,51 @@ def load_config():
         logger.error(f"配置文件格式错误: {config_path}")
         return None
 
+
+# ================= 新增功能：校验数据起始日期 =================
+def validate_start_date(output_dir, expected_start_date):
+    """
+    校验清洗后的文件起始日期是否匹配预期
+    :param output_dir: 清洗后文件目录
+    :param expected_start_date: 预期的开始日期（字符串，格式为YYYY-MM-DD）
+    :return: 不匹配的文件列表，格式为 [(文件名, 实际开始日期), ...]
+    """
+    mismatch_files = []
+    expected_date = pd.to_datetime(expected_start_date)
+    
+    for file_name in os.listdir(output_dir):
+        if file_name.endswith("_cleaned.csv"):
+            file_path = os.path.join(output_dir, file_name)
+            try:
+                df = pd.read_csv(file_path)
+                if not df.empty:
+                    actual_start = pd.to_datetime(df["Date"].iloc[0])
+                    if actual_start > expected_date:
+                        mismatch_files.append((file_name, actual_start.strftime("%Y-%m-%d")))
+            except Exception as e:
+                logger.warning(f"校验文件 {file_name} 时出错: {str(e)}")
+    
+    return mismatch_files
+
+# ================= 新增功能：交互式重新下载 =================
+def prompt_redownload(mismatch_files, expected_start):
+    """
+    显示不匹配文件并提示是否重新下载
+    :param mismatch_files: 不匹配文件列表，格式为 [(文件名, 实际开始日期), ...]
+    :param expected_start: 预期的开始日期
+    :return: True表示需要重新下载，False表示终止
+    """
+    print("\n" + "="*50)
+    print(f"发现 {len(mismatch_files)} 个文件起始日期不匹配预期({expected_start}):")
+    for file, actual_date in mismatch_files:
+        print(f"  - {file}: 实际开始日期 {actual_date}")
+    
+    choice = input("\n是否重新下载这些文件? [Y/n] ").strip().lower()
+    if choice in ("", "y", "yes"):
+        return True
+    return False
+
+
 # ================= 主函数 =================
 def main():
     try:
@@ -175,8 +220,47 @@ def main():
         output_dir = os.path.join(get_project_root(), "data", "cleaned")
         os.makedirs(output_dir, exist_ok=True)
 
-        # 下载并清洗所有股票数据
+        # 第一次下载使用多线程
+        logger.info("执行初始多线程下载...")
         download_and_clean_all_stock_data(stocks, start_date, end_date, interval, output_dir, overwrite)
+
+        # 重试阶段使用单线程
+        max_retry = 30
+        attempt = 0
+        
+        while attempt <= max_retry:
+            # 校验数据起始日期
+            mismatch_files = validate_start_date(output_dir, start_date)
+            
+            if not mismatch_files:
+                logger.info("所有文件起始日期校验通过")
+                break
+                
+            # 显示不匹配文件并提示
+            if not prompt_redownload(mismatch_files, start_date):
+                logger.warning("用户取消重新下载，保留不完整数据")
+                break
+                
+            # 单线程重新下载不匹配的文件
+            overwrite = True
+            retry_stocks = [f.split("_")[0] for f, _ in mismatch_files]
+            
+            logger.info(f"第 {attempt + 1} 次重试，单线程处理 {len(retry_stocks)} 只股票...")
+            for stock in retry_stocks:
+                download_and_clean_stock_data(
+                    stock, 
+                    start_date, 
+                    end_date, 
+                    interval, 
+                    output_dir, 
+                    overwrite
+                )
+            
+            attempt += 1
+            
+            if attempt > max_retry:
+                logger.error(f"已达到最大重试次数{max_retry}，终止流程")
+                break
 
         logger.info("========== 数据下载与清洗完成 ==========")
 
