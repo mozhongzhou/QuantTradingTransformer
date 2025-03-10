@@ -81,8 +81,8 @@ def load_and_preprocess_data(input_dir, seq_length=20):
 
             # 定义交易信号（买入：1，卖出：2，持有：0）
             df["Future_Return"] = df["Close"].shift(-1) / df["Close"] - 1
-            df["Signal"] = np.where(df["Future_Return"] > 0.01, 1,
-                               np.where(df["Future_Return"] < -0.01, 2, 0))
+            df["Signal"] = np.where(df["Future_Return"] > 0.005, 1,
+                               np.where(df["Future_Return"] < -0.005, 2, 0))
             logger.info(f"文件 {file_path} 的交易信号分布:\n{df['Signal'].value_counts()}")
 
             X_seq, y_seq = [], []

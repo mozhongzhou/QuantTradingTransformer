@@ -37,7 +37,7 @@ def setup_logger():
 logger = setup_logger()
 
 # ================= 数据下载 =================
-def download_stock_data(stock, start_date, end_date, interval, save_dir, overwrite):
+def download_stock_data(stock, start_date, end_date, interval, save_dir, overwrite, max_retries=5):
     """
     下载单只股票数据并保存到CSV文件
     :param stock: 股票代码
@@ -46,6 +46,7 @@ def download_stock_data(stock, start_date, end_date, interval, save_dir, overwri
     :param interval: 数据间隔（如 "1d", "1wk"）
     :param save_dir: 保存目录
     :param overwrite: 是否覆盖同名文件
+    :param max_retries: 最大重试次数
     """
     try:
         save_path = os.path.join(save_dir, f"{stock}_{interval}.csv")
@@ -54,23 +55,33 @@ def download_stock_data(stock, start_date, end_date, interval, save_dir, overwri
             logger.info(f"{save_path} 已存在，跳过下载")
             return
         
-        logger.info(f"开始下载 {stock} 数据（{start_date} 至 {end_date}，间隔：{interval}）")
+        for attempt in range(max_retries):
+            logger.info(f"开始下载 {stock} 数据（{start_date} 至 {end_date}，间隔：{interval}），尝试次数：{attempt + 1}")
+            
+            data = yf.download(
+                tickers=stock,
+                start=start_date,
+                end=end_date,
+                interval=interval,
+                progress=False,
+                auto_adjust=True
+            )
+            
+            if data.empty:
+                logger.warning(f"{stock} 未找到数据，跳过保存")
+                return
+            
+            # 检查数据是否包含指定的开始日期
+            if start_date in data.index:
+                data.to_csv(save_path, encoding="utf-8")
+                logger.info(f"{stock} 数据已保存至 {save_path}")
+                return
+            else:
+                logger.warning(f"{stock} 数据不包含开始日期 {start_date}，重试下载")
         
-        data = yf.download(
-            tickers=stock,
-            start=start_date,
-            end=end_date,
-            interval=interval,
-            progress=False,
-            auto_adjust=True
-        )
-        
-        if data.empty:
-            logger.warning(f"{stock} 未找到数据，跳过保存")
-            return
-        
+        # 如果多次重试后仍然不符合要求，保留最后一次下载的数据
         data.to_csv(save_path, encoding="utf-8")
-        logger.info(f"{stock} 数据已保存至 {save_path}")
+        logger.warning(f"{stock} 数据多次重试后仍不包含开始日期 {start_date}，保留最后一次下载的数据")
         
     except Exception as e:
         logger.error(f"下载 {stock} 数据时出错: {str(e)}")
