@@ -1,0 +1,9 @@
+{
+  "model_path": "models/transformer_model_best_2025-03-11_16-17.pth",
+  "data_dir": "data/standardized",
+  "output_dir": "signals",
+  "stock_codes": ["AAPL", "MSFT", "GOOG"],
+  "batch_size": 128,
+  "use_gpu": true,
+  "save_return_analysis": true
+}

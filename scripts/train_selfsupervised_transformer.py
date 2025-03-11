@@ -258,7 +258,10 @@ def load_checkpoint(checkpoint_path, device):
 def main():
     try:
         logger.info("========== 开始训练自监督 Transformer 模型 ==========")
+        
         project_root = get_project_root()
+        
+        # 数据目录
         data_dir = os.path.join(project_root, "data", "standardized")
         
         # 加载配置文件
@@ -280,7 +283,7 @@ def main():
         start_epoch = 0
         best_val_reward = -float("inf")
         
-        # 数据加载和处理部分保持不变
+        # 数据加载和处理
         df = load_csv_data(data_dir)
         logger.info(f"数据加载完成，共 {len(df)} 条记录")
 
@@ -289,12 +292,14 @@ def main():
             df = df.head(max_samples)
             logger.info(f"小规模试跑：使用前 {max_samples} 条记录")
 
+        # 按时间划分数据集,避免数据泄露
         train_df, val_df, test_df = time_based_split(df, 
                                            train_end_date='2020-01-01', 
                                            val_end_date='2022-01-01')
         
         logger.info(f"数据集划分完成：训练集 {len(train_df)} 条, 验证集 {len(val_df)} 条, 测试集 {len(test_df)} 条")
-
+        
+        # config中的模型参数加载
         seq_length = config.get("seq_length", 30)
         batch_size = config.get("batch_size", 64)
         train_dataset = TimeSeriesDataset(train_df, seq_length=seq_length)
@@ -303,10 +308,11 @@ def main():
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+
         logger.info(f"训练集样本数: {len(train_dataset)}, 验证集样本数: {len(val_dataset)}, 测试集样本数: {len(test_dataset)}")
 
-        # 初始化或加载模型
-        input_dim = train_dataset.input_data.shape[1]
+        # 模型初始化
+        input_dim = train_dataset.groups[0]["features"].shape[1]
         model = TransformerModel(
             input_dim=input_dim,
             d_model=config["d_model"],
@@ -316,6 +322,7 @@ def main():
         )
         model.to(device)
         
+        # 优化器
         optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
         
         # 如果存在检查点，加载模型和优化器状态
@@ -339,7 +346,7 @@ def main():
             # 保存检查点
             save_checkpoint(model, optimizer, epoch, best_val_reward, config, checkpoint_dir)
             
-            # 模型改进时保存最佳模型
+            # 模型改进时保存最佳模型(只要效果更好就保存 可能保存多个)
             if val_metrics["avg_reward"] > best_val_reward:
                 best_val_reward = val_metrics["avg_reward"]
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
