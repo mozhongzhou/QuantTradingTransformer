@@ -11,7 +11,6 @@ import torch
 from torch.utils.data import DataLoader
 
 import pandas as pd
-import numpy as np
 
 # ================= 项目路径管理 =================
 def get_project_root():
@@ -48,7 +47,7 @@ logger.info("日志系统初始化成功")
 # ================= 导入其他模块 =================
 try:
     from train_selfsupervised_transformer import (
-        load_csv_data, TimeSeriesDataset, TransformerModel, time_based_split
+        load_csv_data, TimeSeriesDataset, TransformerModel
     )
     logger.info("成功导入训练模块")
 except ImportError as e:
@@ -81,8 +80,7 @@ def load_config(config_path=None):
             "data_dir": os.path.join("data", "standardized"),
             "output_dir": os.path.join("signals"),
             "batch_size": 128,
-            "use_gpu": True,
-            "save_return_analysis": True
+            "use_gpu": True
         }
         
         config_dir = os.path.dirname(config_path)
@@ -186,13 +184,13 @@ def load_model(model_path, data_dir):
 
 def generate_and_save_signals(config=None):
     """
-    评估模型并生成交易信号
+    评估模型并为每个股票生成单独的交易信号文件
     
     参数:
         config (dict): 测试配置，如果为None则加载默认配置
         
     返回:
-        str: 生成的信号文件路径，如果生成失败则返回 None
+        list: 生成的信号文件路径列表，如果生成失败则返回空列表
     """
     project_root = get_project_root()
     
@@ -215,10 +213,8 @@ def generate_and_save_signals(config=None):
 
     if not isinstance(target_stocks, list) or len(target_stocks) == 0:
         logger.error("配置错误: stock_codes 必须为非空列表")
-        return None
-    if len(target_stocks) > 5:
-        logger.warning("建议同时测试的股票不超过5只，当前数量: %d", len(target_stocks))
-
+        return []
+    
     try:
         logger.info(f"加载模型: {model_path}")
         model, model_config = load_model(model_path, data_dir)
@@ -230,10 +226,11 @@ def generate_and_save_signals(config=None):
         if filtered_df.empty:
             missing_stocks = set(target_stocks) - set(full_df["Stock"].unique())
             logger.error(f"以下股票不存在于数据中: {', '.join(missing_stocks)}")
-            return None
+            return []
 
-        all_signals = []
+        output_paths = []
         seq_length = model_config.get("seq_length", 30)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         for stock_code, stock_df in filtered_df.groupby("Stock"):
             logger.info(f"开始处理: {stock_code}")
@@ -241,15 +238,13 @@ def generate_and_save_signals(config=None):
             dataset = TimeSeriesDataset(stock_df, seq_length=seq_length)
             dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
             
-            signals, dates, returns = [], [], []
+            signals, dates = [], []
             model.eval()
             with torch.no_grad():
-                for batch_idx, (seq, ret) in enumerate(dataloader):
+                for batch_idx, (seq, _) in enumerate(dataloader):
                     seq = seq.to(device)
                     pred = model(seq).cpu().numpy().flatten()
-                    
                     signals.extend(pred)
-                    returns.extend(ret.numpy().flatten())
                     
                     for i in range(len(pred)):
                         global_idx = batch_idx * batch_size + i
@@ -266,43 +261,24 @@ def generate_and_save_signals(config=None):
             stock_signal_df = pd.DataFrame({
                 "Date": dates,
                 "Stock": stock_code,
-                "Signal": signals,
-                "Return": returns
+                "Signal": signals
             })
-            all_signals.append(stock_signal_df)
-            logger.info(f"{stock_code} 生成 {len(signals)} 条信号")
+            
+            # 为每个股票保存单独的文件
+            output_path = os.path.join(output_dir, f"signal_{stock_code}_{timestamp}.csv")
+            stock_signal_df.to_csv(output_path, index=False)
+            output_paths.append(output_path)
+            logger.info(f"{stock_code} 信号文件已保存至: {output_path}")
 
-        if not all_signals:
+        if not output_paths:
             logger.error("所有股票处理失败")
-            return None
+            return []
             
-        signal_df = pd.concat(all_signals).sort_values(["Stock", "Date"])
-        signal_df["Strategy_Return"] = signal_df["Signal"] * signal_df["Return"]
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = os.path.join(output_dir, f"signals_{timestamp}.csv")
-        signal_df.to_csv(output_path, index=False)
-        logger.info(f"信号文件已保存至: {output_path}")
-
-        if config.get("save_return_analysis", True):
-            analysis_df = signal_df.groupby("Stock").apply(
-                lambda g: pd.Series({
-                    "Avg_Signal": g.Signal.mean(),
-                    "Win_Rate": (g.Strategy_Return > 0).mean(),
-                    "Sharpe": g.Strategy_Return.mean() / g.Strategy_Return.std() * np.sqrt(252),
-                    "Max_Drawdown": (g.Strategy_Return.cumsum().expanding().max() - g.Strategy_Return.cumsum()).max()
-                })
-            ).reset_index()
-            
-            analysis_path = os.path.join(output_dir, f"performance_{timestamp}.csv")
-            analysis_df.to_csv(analysis_path, index=False)
-            logger.info(f"绩效分析已保存至: {analysis_path}")
-
-        return output_path
+        return output_paths
 
     except Exception as e:
         logger.error(f"信号生成失败: {str(e)}", exc_info=True)
-        return None
+        return []
 
 # ================= 主函数 =================
 def main():
@@ -319,8 +295,8 @@ def main():
     logger.info(f"使用配置: {json.dumps(config, indent=2)}")
     
     try:
-        signal_path = generate_and_save_signals(config)
-        if signal_path:
+        signal_paths = generate_and_save_signals(config)
+        if signal_paths:
             logger.info("信号生成完成！")
         else:
             logger.error("信号生成失败！")
