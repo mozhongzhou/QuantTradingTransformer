@@ -49,52 +49,85 @@ logger.info("日志系统初始化成功")
 def load_csv_data(data_dir: str) -> pd.DataFrame:
     """
     从指定目录加载所有符合命名规则的 CSV 文件，并合并为一个 DataFrame。
-    参数:
-        data_dir (str): 存放 CSV 文件的目录。
-    返回:
-        pd.DataFrame: 合并后的数据。
+    按日期排序以确保时间连续性。
     """
     data_frames = []
     for filename in os.listdir(data_dir):
         if filename.endswith("_cleaned_featured_standardized.csv"):
             file_path = os.path.join(data_dir, filename)
             df = pd.read_csv(file_path)
+            df["Date"] = pd.to_datetime(df["Date"])  # 确保日期是日期时间格式
             stock_code = filename.split("_")[0]
             df["Stock"] = stock_code
             data_frames.append(df)
     if not data_frames:
         raise ValueError("未在指定目录中找到符合条件的 CSV 文件。")
-    return pd.concat(data_frames, ignore_index=True)
+    
+    merged_df = pd.concat(data_frames, ignore_index=True)
+    merged_df = merged_df.sort_values(["Stock", "Date"])  # 按股票和日期排序
+    return merged_df
 
 # ================= 数据集定义 =================
 class TimeSeriesDataset(Dataset):
     def __init__(self, df: pd.DataFrame, seq_length: int):
         if "Returns" not in df.columns:
             raise ValueError("数据中必须包含 'Returns' 列用于计算奖励。")
-        self.raw_returns = df["Returns"].reset_index(drop=True)
-        std_cols = [col for col in df.columns if col.endswith("_standardized") and col != "Returns_standardized"]
-        if not std_cols:
-            raise ValueError("未找到标准化特征列")
-        self.input_data = df[std_cols].reset_index(drop=True)
+        
+        # 按股票分组并重建索引
+        self.groups = []
+        for stock_code, group in df.groupby("Stock"):
+            group = group.reset_index(drop=True)
+            returns = group["Returns"]
+            
+            std_cols = [col for col in group.columns if col.endswith("_standardized") and col != "Returns_standardized"]
+            features = group[std_cols]
+            
+            # 为每个股票记录有效的序列起始索引
+            valid_indices = []
+            for i in range(len(features) - seq_length):
+                valid_indices.append((stock_code, i, len(self.groups)))
+            
+            self.groups.append({
+                "stock_code": stock_code,
+                "features": features,
+                "returns": returns,
+                "valid_indices": valid_indices
+            })
+            
+        # 汇总所有有效的序列索引
+        self.valid_sequences = []
+        for group in self.groups:
+            self.valid_sequences.extend(group["valid_indices"])
+            
         self.seq_length = seq_length
 
     def __len__(self):
-        return len(self.input_data) - self.seq_length
+        return len(self.valid_sequences)
 
     def __getitem__(self, idx):
-        seq = self.input_data.iloc[idx: idx + self.seq_length].values
-        target_return = self.raw_returns.iloc[idx + self.seq_length]
+        stock_code, start_idx, group_idx = self.valid_sequences[idx]
+        group = self.groups[group_idx]
+        
+        seq = group["features"].iloc[start_idx:start_idx + self.seq_length].values
+        target_return = group["returns"].iloc[start_idx + self.seq_length]
+        
         return torch.tensor(seq, dtype=torch.float32), torch.tensor(target_return, dtype=torch.float32)
 
 # ================= 数据集划分函数 =================
-def split_dataset(df: pd.DataFrame, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15):
-    total = len(df)
-    train_end = int(total * train_ratio)
-    val_end = int(total * (train_ratio + val_ratio))
-    train_df = df.iloc[:train_end].reset_index(drop=True)
-    val_df = df.iloc[train_end:val_end].reset_index(drop=True)
-    test_df = df.iloc[val_end:].reset_index(drop=True)
+def time_based_split(df, train_end_date, val_end_date):
+    """
+    按时间划分训练集、验证集和测试集
+    """
+    df["Date"] = pd.to_datetime(df["Date"])
+    train_df = df[df["Date"] <= train_end_date].reset_index(drop=True)
+    val_df = df[(df["Date"] > train_end_date) & (df["Date"] <= val_end_date)].reset_index(drop=True)
+    test_df = df[df["Date"] > val_end_date].reset_index(drop=True)
     return train_df, val_df, test_df
+
+# 例如: 使用具体的日期作为分界点
+# train_df, val_df, test_df = time_based_split(df, 
+#                                             train_end_date='2022-01-01', 
+#                                             val_end_date='2023-01-01')
 
 # ================= 位置编码 =================
 class PositionalEncoding(nn.Module):
@@ -141,6 +174,7 @@ def calculate_reward(target_returns: torch.Tensor, signals: torch.Tensor, risk_p
 
 # ================= 训练逻辑 =================
 def train_model(model: nn.Module, dataloader: DataLoader, config: dict, device: torch.device, phase="训练", optimizer=None):
+
     risk_penalty = config.get("risk_penalty", 0.5)
     if phase == "训练":
         if optimizer is None:
@@ -175,7 +209,9 @@ def train_model(model: nn.Module, dataloader: DataLoader, config: dict, device: 
     avg_risk = sum(risks) / len(risks)
     logger.info(f"{phase}阶段 - 平均奖励: {avg_reward:.4f}, 平均年化收益: {avg_annual_return:.4f}, 平均风险: {avg_risk:.4f}")
     return {"avg_reward": avg_reward, "avg_annual_return": avg_annual_return, "avg_risk": avg_risk}
+
 # ================= 检查点管理 =================
+
 def save_checkpoint(model, optimizer, epoch, best_val_reward, config, checkpoint_dir):
     """
     保存训练检查点
@@ -253,7 +289,10 @@ def main():
             df = df.head(max_samples)
             logger.info(f"小规模试跑：使用前 {max_samples} 条记录")
 
-        train_df, val_df, test_df = split_dataset(df, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15)
+        train_df, val_df, test_df = time_based_split(df, 
+                                           train_end_date='2020-01-01', 
+                                           val_end_date='2022-01-01')
+        
         logger.info(f"数据集划分完成：训练集 {len(train_df)} 条, 验证集 {len(val_df)} 条, 测试集 {len(test_df)} 条")
 
         seq_length = config.get("seq_length", 30)
